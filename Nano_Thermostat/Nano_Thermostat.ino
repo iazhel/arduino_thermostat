@@ -122,12 +122,20 @@ void loop() {
     analogWrite(POW, 0);
     delay(100);
     
-    for(int button = 0; ; button = (button +1)% BUTTON_COUNT){
-    if (!digitalRead(buttonPins[button])) {
-      Serial.print(buttonNames[button]);
-      delay(100); 
-      break;
-    }
+   
+    int button;   
+    for(int i = 0; i < 100 ; button = i % BUTTON_COUNT){
+      if (!digitalRead(buttonPins[button])) {
+        Serial.print(buttonNames[button]);
+        lcd.setCursor(12,0);
+        lcd.print("Bu");
+        lcd.print(button);
+        delay(250); 
+        lcd.setCursor(12,0);
+        lcd.print("  ");
+        //  break;
+      }
+      i++;
   }
 
      
