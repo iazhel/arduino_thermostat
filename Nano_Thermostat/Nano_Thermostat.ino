@@ -124,7 +124,7 @@ void loop() {
     
     for(int button = 0; ; button = (button +1)% BUTTON_COUNT){
     if (!digitalRead(buttonPins[button])) {
-      Serial.print("button");
+      Serial.print(buttonNames[button]);
       delay(100); 
       break;
     }
