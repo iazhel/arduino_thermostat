@@ -1,15 +1,16 @@
 #include <LiquidCrystal.h>
 
 #define BUTTON_COUNT 2
-#define POW 3       // % of power 
-#define RELAY_PIN 4 // + or - polarity
-#define FAN 5       // % of FAN
+#define POW 3       // power % pin
+#define RELAY_PIN 4 // power polarity pin
+#define FAN 5       // FAN pin
 
 
 float temp_reg = 25; // TEMPERATURE WHAT WE NEED AT START
 
 int buttonPins[BUTTON_COUNT] = {A3, A4};
-String buttonNames[BUTTON_COUNT] = {"Button_0", "Button_1"};
+String buttonNames[BUTTON_COUNT] = {"---", "+++"};
+int buttonValue[2] = {-1, 1}; // temperatyre adjust step
 
                     // PID controller coefficients:
 float kp = 100;     // proportional
@@ -19,11 +20,11 @@ float kd = 0;       // differencial
 float temp0 = 0;    // var of temperaure what we need
 float temp1 = 0;    // var of outwhwere temperature
 float temp2 = 0;    // var of FAN radiator temperature
-int raw0 = 0;   // analog input temperature sensors
-int raw1 = 0;   // vars 
-int raw2 = 0;
+int raw0 = 0;   // real output temperature
+int raw1 = 0;   // sensor1 temperature /FAN or cooler/
+int raw2 = 0;   // sensor2 temperature /outwere air/
 
-float powe = 0;
+float powe = 0; //
 float powe_1 = 0;
 float En = 0;
 float En_1 = 0;
@@ -45,7 +46,8 @@ void setup() {
     Serial.begin(9600);
 
     lcd.begin(16,2);
-    lcd.println("Power:  ");  
+    lcd.setCursor(0,1);
+    lcd.println("Power:   ");  
 }
     
 void loop() {
@@ -65,13 +67,14 @@ void loop() {
     temp2 = ( raw2*0.489)-273;
     Serial.println(temp2);
     
-    lcd.setCursor(0,1);
+    lcd.setCursor(0,0);
+    lcd.print("");
     lcd.print(temp0,1);
-    lcd.print("/");
-    lcd.print(temp1,1);
-    lcd.print("/");
-    lcd.print(temp2,1);
-    lcd.print(" C");
+    lcd.print("C  ");
+    lcd.print(temp2,0);
+    lcd.print("C y=");
+    lcd.print(temp_reg,0);
+    lcd.print("C");
     
     // save coefficints for recutent evaluation
     En_2 = En_1;
@@ -100,11 +103,11 @@ void loop() {
     if (powe < -250)
         powe = -250;
         
-    lcd.setCursor(7,0);
+    lcd.setCursor(9,1);
     lcd.print("    ");    
-    lcd.setCursor(7,0);
+    lcd.setCursor(9,1);
     lcd.print(powe/2.5,0);
-    lcd.print("%");
+    lcd.print("%   ");
     
     if(powe > 0) 
       digitalWrite(RELAY_PIN, LOW);
@@ -127,11 +130,11 @@ void loop() {
     for(int i = 0; i < 100 ; button = i % BUTTON_COUNT){
       if (!digitalRead(buttonPins[button])) {
         Serial.print(buttonNames[button]);
-        lcd.setCursor(12,0);
-        lcd.print("Bu");
-        lcd.print(button);
-        delay(250); 
-        lcd.setCursor(12,0);
+        lcd.setCursor(12,1);
+        lcd.print(buttonNames[button]);
+        temp_reg = temp_reg + buttonValue[button];
+        delay(1000); 
+        lcd.setCursor(12,1);
         lcd.print("  ");
         //  break;
       }
