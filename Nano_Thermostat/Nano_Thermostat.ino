@@ -37,8 +37,13 @@ void setup() {
     pinMode( A0, INPUT );
     pinMode( A1, INPUT );
     pinMode( A2, INPUT );
+//  pinMode( A3, INPUT ); // button pin 0
+//  pinMode( A4, INPUT ); // button pin 1
     pinMode(buttonPins[0],INPUT_PULLUP);
     pinMode(buttonPins[1],INPUT_PULLUP);
+    pinMode( A5, INPUT );
+    pinMode( A6, INPUT );
+    
     pinMode(RELAY_PIN, OUTPUT);
     pinMode(POW, OUTPUT);
     pinMode(FAN, OUTPUT);
@@ -51,7 +56,7 @@ void setup() {
 }
     
 void loop() {
-    Serial.println("T Sensor      Outwhere      FAN ");    
+    Serial.println("T Sensor      Outwhere      Set ");    
     Serial.print("T:");    
     raw0 = analogRead(A0);
     temp0 = ( raw0*0.489)-273;
@@ -60,12 +65,15 @@ void loop() {
     
     raw1 = analogRead(A1);
     temp1 = ( raw1*0.489)-273;
-    Serial.print(temp1);
-    Serial.print("/    ");    
+   // Serial.print(temp1);
+    //Serial.print("/    ");    
     
     raw2 = analogRead(A2);
     temp2 = ( raw2*0.489)-273;
-    Serial.println(temp2);
+    Serial.print(temp2);
+    Serial.print("/   R");
+    
+    Serial.println(temp_reg,0);
     
     lcd.setCursor(0,0);
     lcd.print("");
@@ -132,10 +140,10 @@ void loop() {
         Serial.print(buttonNames[button]);
         lcd.setCursor(12,1);
         lcd.print(buttonNames[button]);
-        temp_reg = temp_reg + buttonValue[button];
+       // temp_reg = temp_reg + buttonValue[button];
+        Serial.println(temp_reg);
         delay(1000); 
         lcd.setCursor(12,1);
-        lcd.print("  ");
         //  break;
       }
       i++;
