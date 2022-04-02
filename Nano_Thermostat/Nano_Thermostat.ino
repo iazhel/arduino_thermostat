@@ -8,7 +8,10 @@
 
 
 float temp_reg = 18; // TEMPERATURE WHAT WE NEED AT START
+float tCorr = -3.2;   // Temperature adjusting value
+float uCorr = 0; // Voltage adjucting value
 int power_histeresis = 4;
+
 
 int buttonPins[BUTTON_COUNT] = {A3, A4};
 String buttonNames[BUTTON_COUNT] = {"---", "+++"};
@@ -57,17 +60,17 @@ void loop() {
     Serial.println("");    
     //Serial.print("T:");    
     raw0 = analogRead(A0);
-    temp0 = ( raw0*0.489)-273;
+    temp0 = ( raw0*0.489)-273+tCorr;
     Serial.print(temp0);    
     Serial.print("/       air:");    
     
     raw1 = analogRead(A1);
-    temp1 = ( raw1*0.489)-273;
+    temp1 = ( raw1*0.489)-273+tCorr;
    // Serial.print(temp1);
     //Serial.print("/    ");    
     
     raw2 = analogRead(A2);
-    temp2 = ( raw2*0.489)-273;
+    temp2 = ( raw2*0.489)-273+tCorr;
 
     Serial.print(temp2);
     Serial.print("/   set:");
@@ -80,7 +83,7 @@ void loop() {
     lcd.print(temp2,0);
     lcd.print("C y=");
     lcd.print(temp_reg,0);
-    lcd.print("C");
+    lcd.print("C  ");
     
     // save coefficints for recutent evaluation
     En_2 = En_1;
@@ -137,12 +140,12 @@ void loop() {
     delay(500);
           
     // Voltage measuring
-    float v0 = ((analogRead(A5)*5*11.80)/(1023*2.10) + 0.89)*(5/5.83);
+    float v0 = ((analogRead(A5)*5*(11.7-vCorr))/(1023*2.10)) + 0.9;
     int ads1 = analogRead(A6);
     
     Serial.print("    ");
     Serial.print(v0);
-    Serial.print("V ");
+    Serial.print("V   ");
     Serial.print(ads1);
     Serial.println("V ");
 
