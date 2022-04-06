@@ -8,7 +8,7 @@
 
 
 float temp_reg = 18; // TEMPERATURE WHAT WE NEED AT START
-float tCorr = -3.2;   // Temperature adjusting value
+float tCorr = -3.5;   // Temperature adjusting value
 float uCorr = 0; // Voltage adjucting value
 int power_histeresis = 4;
 
@@ -57,18 +57,17 @@ void setup() {
 }
     
 void loop() {
-    Serial.println("");    
+       
     //Serial.print("T:");    
     raw0 = analogRead(A0);
     temp0 = ( raw0*0.489)-273+tCorr;
+    Serial.println("");
     Serial.print(temp0);    
     Serial.print("/       air:");    
     
     raw1 = analogRead(A1);
     temp1 = ( raw1*0.489)-273+tCorr;
-   // Serial.print(temp1);
-    //Serial.print("/    ");    
-    
+       
     raw2 = analogRead(A2);
     temp2 = ( raw2*0.489)-273+tCorr;
 
@@ -105,6 +104,7 @@ void loop() {
     // heat or cold. use histeresis
     if(powe > power_histeresis) {
       digitalWrite(RELAY_PIN, LOW);
+    
       lcd.setCursor(0,1);
       lcd.print("Heat:");
     }
@@ -117,7 +117,8 @@ void loop() {
     lcd.print(powe/2.5,0);
     lcd.print("% ");
 
-     // on power      
+     // on power
+    delay(50);      
     analogWrite(POW, abs(powe));
     
     Serial.print("    Power:");
@@ -136,7 +137,6 @@ void loop() {
     if (abs(powe) < 100)                 
         digitalWrite(FAN, 0);
          
-    
     delay(500);
           
     // Voltage measuring
@@ -156,19 +156,20 @@ void loop() {
       
     // time out for power          
     analogWrite(POW, 0);
-    delay(100);
+    delay(50);
 
     //    
     int button;   
     for(int i = 0; i < 100 ; button = i % BUTTON_COUNT){
       if (!digitalRead(buttonPins[button])) {
+    
         Serial.print(buttonNames[button]);
         lcd.setCursor(12,1);
         lcd.print(buttonNames[button]);
+        
         temp_reg = temp_reg + buttonValue[button];
         Serial.println(temp_reg);
-        delay(1000); 
-        //  lcd.setCursor(12,1);
+        //delay(1000); 
         break;
       }
       i++;
