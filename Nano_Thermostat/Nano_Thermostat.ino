@@ -9,7 +9,7 @@
 
 float temp_reg = 18; // TEMPERATURE WHAT WE NEED AT START
 float tCorr = -3.5;   // Temperature adjusting value
-float uCorr = 0; // Voltage adjucting value
+float vCorr = 0; // Voltage adjucting value
 int power_histeresis = 4;
 
 
@@ -144,16 +144,21 @@ void loop() {
     int ads1 = analogRead(A6);
     
     Serial.print("    ");
-    Serial.print(v0);
-    Serial.print("V   ");
-    Serial.print(ads1);
-    Serial.println("V ");
-
+    Serial.println(v0);
     lcd.print(v0,1);
     lcd.print("V  ");
+
+    
+    Serial.print("A5: ");
+    Serial.print(analogRead(A5));
+    Serial.print("  A6: ");
+    Serial.print(analogRead(A6));
+    Serial.print("  A7: ");
+    Serial.print(analogR
+    ead(A7));
     
     delay(2500); 
-      
+          
     // time out for power          
     analogWrite(POW, 0);
     delay(50);
