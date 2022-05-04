@@ -35,11 +35,12 @@ float powe_1 = 0;
 float En = 0;
 float En_1 = 0;
 float En_2 = 0;
-
+// LiquidCrystal object_name(rs,rw,en,d4,d5,d6,d7)
+//* LiquidCrystal lcd(RS, EN, DB4, DB5, DB6, DB7);
 //LiquidCrystal lcd(6,7,8,9,10,11);
 LiquidCrystal lcd(11,10,9,8,7,6);
 void setup() {
-    
+   
     pinMode( A0, INPUT );
     pinMode( A1, INPUT );
     pinMode( A2, INPUT );
@@ -53,7 +54,7 @@ void setup() {
     pinMode(FAN, OUTPUT);
 
     Serial.begin(9600);
-    lcd.begin(16,1);
+    lcd.begin(8,2);
 }
     
 void loop() {
@@ -77,11 +78,11 @@ void loop() {
     lcd.setCursor(0,0);
     lcd.print("");
     lcd.print(temp0,1);
-    lcd.print("C  ");
-    lcd.print(temp2,0);
-    lcd.print("C y=");
+    lcd.print("/");
+    lcd.print(temp1,0);
+    lcd.print("/");
     lcd.print(temp_reg,0);
-    lcd.print("C  ");
+    lcd.print("C");
     
     // save coefficints for recutent evaluation
     En_2 = En_1;
@@ -105,12 +106,12 @@ void loop() {
       digitalWrite(RELAY_PIN, LOW);
     
       lcd.setCursor(0,1);
-      lcd.print("Heat:");
+      lcd.print(" +:");
     }
     if (powe < -1* power_histeresis){
       digitalWrite(RELAY_PIN, HIGH);
       lcd.setCursor(0,1);
-      lcd.print("Cool:");
+      lcd.print(" -");
     }
 
     lcd.print(powe/2.5,0);
