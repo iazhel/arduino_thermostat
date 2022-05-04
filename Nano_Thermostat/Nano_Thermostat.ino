@@ -8,7 +8,7 @@
 
 
 float temp_reg = 18; // TEMPERATURE WHAT WE NEED AT START
-float tCorr = -3.5;   // Temperature adjusting value
+float tCorr = 0;   // Temperature adjusting value
 float vCorr = 0; // Voltage adjucting value
 int power_histeresis = 4;
 
@@ -36,8 +36,8 @@ float En = 0;
 float En_1 = 0;
 float En_2 = 0;
 
-LiquidCrystal lcd(6,7,8,9,10,11);
-
+//LiquidCrystal lcd(6,7,8,9,10,11);
+LiquidCrystal lcd(11,10,9,8,7,6);
 void setup() {
     
     pinMode( A0, INPUT );
@@ -53,26 +53,25 @@ void setup() {
     pinMode(FAN, OUTPUT);
 
     Serial.begin(9600);
-    lcd.begin(16,2);
+    lcd.begin(16,1);
 }
     
 void loop() {
-       
-    //Serial.print("T:");    
+    Serial.println("");   
+    Serial.print("T0=");    
     raw0 = analogRead(A0);
     temp0 = ( raw0*0.489)-273+tCorr;
-    Serial.println("");
     Serial.print(temp0);    
-    Serial.print("/       air:");    
     
+    Serial.print("/       T1=");    
     raw1 = analogRead(A1);
     temp1 = ( raw1*0.489)-273+tCorr;
        
-    raw2 = analogRead(A2);
-    temp2 = ( raw2*0.489)-273+tCorr;
+   // raw2 = analogRead(A2);
+   // temp2 = ( raw2*0.489)-273+tCorr;
 
-    Serial.print(temp2);
-    Serial.print("/   set:");
+    Serial.print(temp1);
+    Serial.print("/   Tset=");
     Serial.println(temp_reg,0);
     
     lcd.setCursor(0,0);
@@ -143,7 +142,7 @@ void loop() {
     float v0 = ((analogRead(A5)*5*(11.7-vCorr))/(1023*2.10)) + 0.9;
     int ads1 = analogRead(A6);
     
-    Serial.print("    ");
+    Serial.print("    V0=");
     Serial.println(v0);
     lcd.print(v0,1);
     lcd.print("V  ");
@@ -154,8 +153,7 @@ void loop() {
     Serial.print("  A6: ");
     Serial.print(analogRead(A6));
     Serial.print("  A7: ");
-    Serial.print(analogR
-    ead(A7));
+    Serial.print(analogRead(A7));
     
     delay(2500); 
           
