@@ -1,44 +1,40 @@
 #include <LiquidCrystal.h>
 
-#define BUTTON_COUNT 2
-
+#define BUZZER 2    // 
 #define POW 3       // power % pin
 #define RELAY_PIN 4 // power polarity pin
 #define FAN 5       // FAN pin
+#define BUTTON_COUNT 2
 
+// adjusting values
+float temp_reg = 18; // 
+float tCorr = 0, vCorr = 0.069;  // 
+int powerHisteresis = 4;
 
-float temp_reg = 18; // TEMPERATURE WHAT WE NEED AT START
-float tCorr = 0;   // Temperature adjusting value
-float vCorr = 0; // Voltage adjucting value
-int power_histeresis = 4;
+int buttonPins[BUTTON_COUNT] = {12, A3};
+String buttonLcdMsg[BUTTON_COUNT] = {"---", "+++"};
+int buttonChValue[2] = {-1, 1}; // temperatyre adjust step
 
-
-int buttonPins[BUTTON_COUNT] = {A3, A4};
-String buttonNames[BUTTON_COUNT] = {"---", "+++"};
-int buttonValue[2] = {-1, 1}; // temperatyre adjust step
-
-                    // PID controller coefficients:
+// PID controller coefficients:
 float kp = 50;     // proportional
 float ki = 5;       // integral 
 float kd = 0;       // differencial
+// PID calculaded vars
+float powe = 0, powe_1 = 0;
+float En = 0, En_1 = 0, En_2 = 0;
 
-float temp0 = 0;    // var of temperaure what we need
-float temp1 = 0;    // var of outwhwere temperature
-float temp2 = 0;    // var of FAN radiator temperature
+//  object/ air/ unused/ temperature
+float temp0 = 0, temp1 = 0, temp2 = 0; 
+// ADC temprature var
+int raw0, raw1, raw2;
 
-int raw0 = 0;   // real output temperature
-int raw1 = 0;   // sensor1 temperature /FAN or cooler/
-int raw2 = 0;   // sensor2 temperature /outwere air/
 
-float powe = 0; //
-float powe_1 = 0;
-float En = 0;
-float En_1 = 0;
-float En_2 = 0;
-// LiquidCrystal object_name(rs,rw,en,d4,d5,d6,d7)
-//* LiquidCrystal lcd(RS, EN, DB4, DB5, DB6, DB7);
-//LiquidCrystal lcd(6,7,8,9,10,11);
-LiquidCrystal lcd(11,10,9,8,7,6);
+// serial device LCD pin
+//const int rs = 11, en = 10, d4 = 9, d5 = 8, d6 = 7, d7 = 6;
+// laboratiory device LCD pin
+const int rs = 6, en = 7, d4 = 8, d5 = 9, d6 = 10, d7 = 11;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
 void setup() {
    
     pinMode( A0, INPUT );
@@ -47,14 +43,14 @@ void setup() {
     pinMode(buttonPins[0],INPUT_PULLUP); //A3
     pinMode(buttonPins[1],INPUT_PULLUP); //A4
     pinMode( A5, INPUT );
-//    pinMode( A6, INPUT );
+
     
     pinMode(RELAY_PIN, OUTPUT);
     pinMode(POW, OUTPUT);
     pinMode(FAN, OUTPUT);
 
     Serial.begin(9600);
-    lcd.begin(8,2);
+    lcd.begin(16,2);
 }
     
 void loop() {
@@ -68,21 +64,20 @@ void loop() {
     raw1 = analogRead(A1);
     temp1 = ( raw1*0.489)-273+tCorr;
        
-   // raw2 = analogRead(A2);
-   // temp2 = ( raw2*0.489)-273+tCorr;
+    raw2 = analogRead(A2);
+    temp2 = ( raw2*0.489)-273+tCorr;
 
     Serial.print(temp1);
     Serial.print("/   Tset=");
     Serial.println(temp_reg,0);
     
     lcd.setCursor(0,0);
-    lcd.print("");
     lcd.print(temp0,1);
     lcd.print("/");
     lcd.print(temp1,0);
-    lcd.print("/");
+    lcd.print("/Y=");
     lcd.print(temp_reg,0);
-    lcd.print("C");
+    lcd.print("С");  
     
     // save coefficints for recutent evaluation
     En_2 = En_1;
@@ -102,16 +97,16 @@ void loop() {
         powe = -250;
  
     // heat or cold. use histeresis
-    if(powe > power_histeresis) {
+    if(powe > powerHisteresis) {
       digitalWrite(RELAY_PIN, LOW);
     
       lcd.setCursor(0,1);
-      lcd.print(" +:");
+     
     }
-    if (powe < -1* power_histeresis){
+    if (powe < -1* powerHisteresis){
       digitalWrite(RELAY_PIN, HIGH);
       lcd.setCursor(0,1);
-      lcd.print(" -");
+      
     }
 
     lcd.print(powe/2.5,0);
@@ -140,22 +135,18 @@ void loop() {
     delay(500);
           
     // Voltage measuring
-    float v0 = ((analogRead(A5)*5*(11.7-vCorr))/(1023*2.10)) + 0.9;
-    int ads1 = analogRead(A6);
-    
+    float v0 = ((analogRead(A5)*0.069));
+    float v1 = ((analogRead(A6)*0.069));
+        
     Serial.print("    V0=");
     Serial.println(v0);
     lcd.print(v0,1);
-    lcd.print("V  ");
-
+    lcd.print("V ");
+    lcd.print(v1,1);
+    lcd.print("V ");
     
-    Serial.print("A5: ");
-    Serial.print(analogRead(A5));
-    Serial.print("  A6: ");
-    Serial.print(analogRead(A6));
-    Serial.print("  A7: ");
-    Serial.print(analogRead(A7));
-    
+    Serial.print("    V1=");
+    Serial.println(v1);    
     delay(2500); 
           
     // time out for power          
@@ -163,20 +154,22 @@ void loop() {
     delay(50);
 
     //    
+   
     int button;   
     for(int i = 0; i < 100 ; button = i % BUTTON_COUNT){
       if (!digitalRead(buttonPins[button])) {
     
-        Serial.print(buttonNames[button]);
-        lcd.setCursor(12,1);
-        lcd.print(buttonNames[button]);
+        Serial.print(buttonLcdMsg[button]);
+        lcd.setCursor(0,1);
+        lcd.print(buttonLcdMsg[button]);
         
-        temp_reg = temp_reg + buttonValue[button];
+        temp_reg = temp_reg + buttonChValue[button];
         Serial.println(temp_reg);
         //delay(1000); 
         break;
       }
       i++;
+      
   }
    
 }
