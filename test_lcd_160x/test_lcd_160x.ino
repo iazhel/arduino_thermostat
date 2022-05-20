@@ -16,7 +16,8 @@ void setup() {
   //lcd.setCursor(0,1); // 0-я позиция 1-й строчки
   lcd.print("Hello,__");
   lcd.setCursor(0,2); // 0-я позиция 2-й строчки
-  lcd.print("world!__");
+  lcd.print("world!_");
+
 }
 
 void loop() {
