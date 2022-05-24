@@ -5,7 +5,8 @@
 #define RELAY_PIN 4    // power polarity pin
 #define FAN 5          // FAN pin
 #define VBAT A6        // +12 battary 
-#define VCC A7         // VCC 
+#define VCC A7         
+// VCC 
 #define lcdLen 8       // 8 for 16*1, 16 for 16*2 lcdt
 
 #define BUTTON_COUNT 2 //
@@ -14,8 +15,10 @@ boolean buttonUpLevel = HIGH;
 String buttonLcdMsg[BUTTON_COUNT] = {"-----", "+++++"};
 int buttonChValue[2] = {-1, 1}; // temperatyre adjust step
 
-int timeCycle = 2500;
-int printPause = 1500; // have 6 
+
+
+int printPause = 500; // have 6
+int timeCycle = 2 * printPause; 
 // adjusting values
 float tCorr = 0;  // temperature correction
 float v0Corr = 0.067,v1Corr = 0.067;  // voltage measurement coefficient
@@ -27,7 +30,7 @@ int poweForFanOn = 120;   // value output power for FAN on
 int poweForFanOff = 70;   // value output power for FAN off
 float powWaitCoef = 0.5;  // coeficient output power decriace when VCC(V1) < 6V,
 float fanWaitCoef = 0.25; // coeficient FAN speed decriase when VCC < 6V;
-
+float uLowCoef = 0.7;
 
 // PID controller coefficients:
 float kp = 50;     // proportional
@@ -114,9 +117,9 @@ void loop() {
     delay(2*printPause);
     
     lcd.setCursor(0,1);
-    lcd.print(" Tset=");
+    lcd.print(" Ts=");
     lcd.print(temp_reg,1);
-    lcd.print("V  ");
+    lcd.print("C  ");
     delay(2*printPause);
     
     // save coefficints for recutent evaluation
@@ -144,7 +147,7 @@ void loop() {
     if (powe < -powMax)
         powe = -powMax;
         
-    int powerOutput = int(powe*(1 - powWaitCoef*(v1 < 6)));     
+    int powerOutput = int(powe*(1 - powWaitCoef*(v1 < 6))*(1 - uLowCoef*(v0<9)));     
     //int powerOutput = powe;
  
     int fanPower; 
