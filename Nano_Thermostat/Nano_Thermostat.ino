@@ -5,27 +5,40 @@
 #define RELAY_PIN 4    // power polarity pin
 #define FAN 5          // FAN pin
 #define VBAT A6        // +12 battary 
-#define VCC A7         
-// VCC 
+#define VCC A7         // VCC 
 #define lcdLen 8       // 8 for 16*1, 16 for 16*2 lcdt
-
 #define BUTTON_COUNT 2 //
+
+//CALIBRATING
+float tCorr = 2.0;  // temperature correction
+float v0Corr = 0.067,v1Corr = 0.067;  // voltage measurement coefficient
+
+// ALARMS SETTINGS
+const int alarmCount = 3;
+int alarm0[alarmCount] = {0,0,0}; //
+int deltaT0[alarmCount] = {2, 6, 10}; //
+int sumAlarm0[alarmCount] = {0,0,0};  //
+int al0CyclesCount[alarmCount] = {2,4,8};// 
+
+int alarm1[alarmCount] = {0,0,0}; //
+int deltaT1[alarmCount] = {10, 15, 20}; //
+int sumAlarm1[alarmCount] = {0,0,0};
+int al1CyclesCount[alarmCount] = {4,8,16};//
+
 int buttonPins[BUTTON_COUNT] = {A5, A4};
 int button;   
 boolean buttonUpLevel = HIGH;
 String buttonLcdMsg[BUTTON_COUNT] = {"-----   ", "+++++   "};
 int buttonChValue[2] = {-1, 1}; // temperatyre adjust step
 
-
-
 int printPause = 500; // have 6
 int timeCycle = 2 * printPause; 
 // adjusting values
-float tCorr = 2.0;  // temperature correction
-float v0Corr = 0.067,v1Corr = 0.067;  // voltage measurement coefficient
+
 int powerHisteresis = 4; // relay paramert
 
-float temp_reg = 18;      //  Temperature at start
+float Tset = 18;      //  Temperature at start
+int deltaRegulatedTemp = 5; // border for Tset
 int fanMaxPower = 125, powMax = 250;    //  of 254 max
 int poweForFanOn = 120;   // value output power for FAN on
 int poweForFanOff = 70;   // value output power for FAN off
@@ -94,7 +107,7 @@ void loop() {
     Serial.print("/ T1="); 
     Serial.print(temp1);
     Serial.print("/ Ts=");
-    Serial.print(temp_reg,0);
+    Serial.print(Tset,0);
     Serial.print("C");
         
     Serial.print("/ V0=");
@@ -107,7 +120,7 @@ void loop() {
     lcd.print("C ");
     lcd.print(temp1,0);
     //lcd.print("/");
-    //lcd.print(temp_reg,0);
+    //lcd.print(Tset,0);
     lcd.print("C  ");  
 
     lcd.setCursor(0,1);
@@ -124,14 +137,14 @@ void loop() {
     
     lcd.setCursor(0,1);
     lcd.print(" Ts=");
-    lcd.print(temp_reg,1);
+    lcd.print(Tset,1);
     lcd.print("C  ");
     delay(2*printPause);
     
     // save coefficints for recutent evaluation
     En_2 = En_1;
     En_1 = En;
-    En = temp_reg - temp0;
+    En = Tset - temp0;
     powe_1 = powe;
     float Ui = ki*En;
     float Up = kp*(En - En_1);
@@ -195,7 +208,7 @@ void loop() {
     for(int i = 0; i < 100 ; button = i % BUTTON_COUNT){
       if (digitalRead(buttonPins[button])==!buttonUpLevel) {
         
-        temp_reg = temp_reg + buttonChValue[button];
+        Tset = Tset + buttonChValue[button];
        
         Serial.println("Button pressed: "); 
         Serial.print(buttonLcdMsg[button]);
@@ -204,19 +217,83 @@ void loop() {
         lcd.print(buttonLcdMsg[button]);
         lcd.setCursor(0,1);
         lcd.print(" Ts=");
-        lcd.print(temp_reg,1);        
+        lcd.print(Tset,1);        
         
         digitalWrite(BUZZER, HIGH);
         delay(2*printPause);
-        digitalWrite(BUZZER, LOW); 
+        digitalWrite(BUZZER, LOW);
+
+        lcd.clear();
+        for (int i = 0; i < alarmCount;i++){
+            lcd.print(sumAlarm0[i]);
+            lcd.print("/");  
+        }
+        
+        lcd.setCursor(0,1);
+        for (int i = 0; i < alarmCount;i++){
+            lcd.print(sumAlarm1[i]);
+            lcd.print("/");  
+        }
+        delay(2*printPause);
         break;
       }
       i++;
    }
+  /// ALARMS on Tset, Tset 
    
+   if (abs(Tset - 18) > deltaRegulatedTemp){
+        lcd.clear();
+        lcd.print("Tset =");
+        lcd.setCursor(0,1);
+        lcd.print(Tset);
+        tone(BUZZER, 1700);
+        delay(2000);
+        noTone(BUZZER);
+      }
+      
+  /// ALARMS(0) on on temp0 
+  
+   for (int i = 0; i < alarmCount;i++){
+        if (abs(temp0 - Tset) > deltaT0[i]){
+              alarm0[i]++;             
+            } 
+            else {
+              alarm0[i] = 0;
+        }
+        if (alarm0[i]>al0CyclesCount[i]){
+            sumAlarm0[i]++;
+            lcd.clear();
+            lcd.print(temp0);
+            tone(BUZZER, (i+1)*100);
+            delay(150);
+            noTone(BUZZER);    
+        } 
+    }
+     
+    delay(1*printPause);
+/// ALARMS(1) on on temp0 and Tset
+
+   for (int i = 0; i < alarmCount;i++){
+        if (temp1 - Tset > deltaT1[i]){
+              alarm1[i]++;             
+            } 
+            else {
+              alarm1[i] = 0;
+        }
+        if (alarm1[i]>al1CyclesCount[i]){
+            sumAlarm1[i]++;
+            lcd.clear();
+            lcd.print("    ");
+            lcd.print(temp1);
+            tone(BUZZER, (2*i+6)*100);
+            delay(150);
+            noTone(BUZZER);    
+        } 
+    }
+                 
   // time out for power          
   // analogWrite(POW, 0);
   // tone(BUZZER,1000);
-  // delay(500);
-  // noTone(BUZZER);
+   delay(printPause);
+    // noTone(BUZZER);
 }
