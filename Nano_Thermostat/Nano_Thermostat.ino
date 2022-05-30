@@ -11,8 +11,9 @@
 
 #define BUTTON_COUNT 2 //
 int buttonPins[BUTTON_COUNT] = {A5, A4};
+int button;   
 boolean buttonUpLevel = HIGH;
-String buttonLcdMsg[BUTTON_COUNT] = {"-----", "+++++"};
+String buttonLcdMsg[BUTTON_COUNT] = {"-----   ", "+++++   "};
 int buttonChValue[2] = {-1, 1}; // temperatyre adjust step
 
 
@@ -20,7 +21,7 @@ int buttonChValue[2] = {-1, 1}; // temperatyre adjust step
 int printPause = 500; // have 6
 int timeCycle = 2 * printPause; 
 // adjusting values
-float tCorr = 0;  // temperature correction
+float tCorr = 2.0;  // temperature correction
 float v0Corr = 0.067,v1Corr = 0.067;  // voltage measurement coefficient
 int powerHisteresis = 4; // relay paramert
 
@@ -45,7 +46,8 @@ float En = 0, En_1 = 0, En_2 = 0;
 float temp0 = 0, temp1 = 0;// ADC temprature var
 int raw0, raw1, raw2;
 float v0, v1;
-
+int powerOutput = 0;
+ 
 // serial device LCD pins
  const int rs = 11, en = 10, d4 = 9, d5 = 8, d6 = 7, d7 = 6;
 // laboratory device LCD pins
@@ -71,7 +73,8 @@ void setup() {
 }
     
 void loop() {
-    
+    analogWrite(POW, 0);
+    delay(175);
     // Temperature measuring
     raw0 = analogRead(A0);
     temp0 = ( raw0*0.489)-273+tCorr;
@@ -81,8 +84,11 @@ void loop() {
     // Voltage measuring
     v0 = ((analogRead(VBAT)*v0Corr));
     v1 = ((analogRead(VCC)*v1Corr));
-
-    Serial.println("");   
+    
+    delay(25);
+    analogWrite(POW, abs(powerOutput));
+    
+    Serial.print("");   
     Serial.print("T0="); 
     Serial.print(temp0);    
     Serial.print("/ T1="); 
@@ -147,7 +153,7 @@ void loop() {
     if (powe < -powMax)
         powe = -powMax;
         
-    int powerOutput = int(powe*(1 - powWaitCoef*(v1 < 6))*(1 - uLowCoef*(v0<9)));     
+    powerOutput = int(powe*(1 - powWaitCoef*(v1 < 6))*(1 - uLowCoef*(v0<9)));     
     //int powerOutput = powe;
  
     int fanPower; 
@@ -185,23 +191,23 @@ void loop() {
     digitalWrite(FAN, fanPower);
     delay(timeCycle);  
 
-    int button;   
+  
     for(int i = 0; i < 100 ; button = i % BUTTON_COUNT){
       if (digitalRead(buttonPins[button])==!buttonUpLevel) {
-     
+        
+        temp_reg = temp_reg + buttonChValue[button];
+       
         Serial.println("Button pressed: "); 
         Serial.print(buttonLcdMsg[button]);
         
         lcd.setCursor(0,0);
-        lcd.print(analogRead(buttonPins[button]));
-        lcd.print("Button: ");
-        
-        lcd.setCursor(0,1);
         lcd.print(buttonLcdMsg[button]);
+        lcd.setCursor(0,1);
+        lcd.print(" Ts=");
+        lcd.print(temp_reg,1);        
         
-        temp_reg = temp_reg + buttonChValue[button];
         digitalWrite(BUZZER, HIGH);
-        delay(printPause);
+        delay(2*printPause);
         digitalWrite(BUZZER, LOW); 
         break;
       }
