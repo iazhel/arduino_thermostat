@@ -9,8 +9,16 @@
 #define lcdLen 8       // 8 for 16*1, 16 for 16*2 lcdt
 #define BUTTON_COUNT 2 //
 
+char ver[] = "v1.15";
+char data[] ="06/06/22";
+ 
 //CALIBRATING
-float tCorr = 2.0;  // temperature correction
+float t0Corr = -2.0;  // regulated temperature correction
+float t1Corr = 1.0;  // outwere temperature correction
+
+float Tset = 2;      //  Temperature at start
+int deltaRegulatedTemp = 20; // border for Tset
+
 float v0Corr = 0.067,v1Corr = 0.067;  // voltage measurement coefficient
 
 // ALARMS SETTINGS
@@ -18,12 +26,12 @@ const int alarmCount = 3;
 int alarm0[alarmCount] = {0,0,0}; //
 int deltaT0[alarmCount] = {2, 6, 10}; //
 int sumAlarm0[alarmCount] = {0,0,0};  //
-int al0CyclesCount[alarmCount] = {2,4,8};// 
+int al0CyclesCount[alarmCount] = {32, 16, 4};// 
 
 int alarm1[alarmCount] = {0,0,0}; //
-int deltaT1[alarmCount] = {10, 15, 20}; //
+int deltaT1[alarmCount] = {20, 25, 30}; //
 int sumAlarm1[alarmCount] = {0,0,0};
-int al1CyclesCount[alarmCount] = {4,8,16};//
+int al1CyclesCount[alarmCount] = {128, 64, 32};//
 
 int buttonPins[BUTTON_COUNT] = {A5, A4};
 int button;   
@@ -31,14 +39,13 @@ boolean buttonUpLevel = HIGH;
 String buttonLcdMsg[BUTTON_COUNT] = {"-----   ", "+++++   "};
 int buttonChValue[2] = {-1, 1}; // temperatyre adjust step
 
-int printPause = 500; // have 6
+int printPause = 1000; // have 6
 int timeCycle = 2 * printPause; 
 // adjusting values
 
 int powerHisteresis = 4; // relay paramert
 
-float Tset = 18;      //  Temperature at start
-int deltaRegulatedTemp = 5; // border for Tset
+
 int fanMaxPower = 125, powMax = 250;    //  of 254 max
 int poweForFanOn = 120;   // value output power for FAN on
 int poweForFanOff = 70;   // value output power for FAN off
@@ -47,7 +54,7 @@ float fanWaitCoef = 0.25; // coeficient FAN speed decriase when VCC < 6V;
 float uLowCoef = 0.7;
 
 // PID controller coefficients:
-float kp = 50;     // proportional
+float kp = 25;     // proportional
 float ki = 5;       // integral 
 float kd = 0;       // differencial
 
@@ -82,26 +89,31 @@ void setup() {
     pinMode(BUZZER, OUTPUT);
     
     Serial.begin(9600);
+
     lcd.begin(lcdLen,2);
+   
+    lcd.print(ver);
+    lcd.setCursor(0,1);
+    lcd.print(data);
+    delay(3000);
 }
     
 void loop() {
     analogWrite(POW, 0);
-    delay(175);
+    delay(75);
     // Temperature measuring
     raw0 = analogRead(A0);
-    temp0 = ( raw0*0.489)-273+tCorr;
+    temp0 = ( raw0*0.489)-273+t0Corr;
     raw1 = analogRead(A1);
-    temp1 = ( raw1*0.489)-273+tCorr;
+    temp1 = ( raw1*0.489)-273+t1Corr;
    
-    // Voltage measuring
-    v0 = ((analogRead(VBAT)*v0Corr));
-    v1 = ((analogRead(VCC)*v1Corr));
+    // Voltage measuring without poewer supply
+    //v0 = ((analogRead(VBAT)*v0Corr));
+    //v1 = ((analogRead(VCC)*v1Corr));
     
     delay(25);
     analogWrite(POW, abs(powerOutput));
-    
-    Serial.print("");   
+        
     Serial.print("T0="); 
     Serial.print(temp0);    
     Serial.print("/ T1="); 
@@ -109,12 +121,23 @@ void loop() {
     Serial.print("/ Ts=");
     Serial.print(Tset,0);
     Serial.print("C");
-        
-    Serial.print("/ V0=");
+
+    Serial.print("  Alarms0:"); 
+     for (int i = 0; i < alarmCount;i++){
+         Serial.print(sumAlarm0[i]);
+         Serial.print("/");  
+     }
+     Serial.print("  Alarms1:");
+     for (int i = 0; i < alarmCount;i++){
+         Serial.print(sumAlarm1[i]);
+         Serial.print("/");  
+     }    
+   //    
+    Serial.print(" V0=");
     Serial.print(v0);
-    Serial.print("/ V1=");
+    Serial.print(" V1=");
     Serial.print(v1); 
-   
+
     lcd.setCursor(0,0);
     lcd.print(temp0,0);
     lcd.print("C ");
@@ -196,14 +219,17 @@ void loop() {
     Serial.print("/");
     Serial.print(Ud,1);
     Serial.print("/");
-    Serial.println(Up,1);
+    Serial.print(Up,1);
       
      
     // OUTPUT POWER ON!!!     
     analogWrite(POW, abs(powerOutput));      
     digitalWrite(FAN, fanPower);
     delay(timeCycle);  
-
+    
+    // voltage measuring
+    v0 = ((analogRead(VBAT)*v0Corr));
+    v1 = ((analogRead(VCC)*v1Corr));
   
     for(int i = 0; i < 100 ; button = i % BUTTON_COUNT){
       if (digitalRead(buttonPins[button])==!buttonUpLevel) {
@@ -261,6 +287,7 @@ void loop() {
               alarm0[i] = 0;
         }
         if (alarm0[i]>al0CyclesCount[i]){
+          
             sumAlarm0[i]++;
             lcd.clear();
             lcd.print(temp0);
@@ -286,6 +313,7 @@ void loop() {
             lcd.print("    ");
             lcd.print(temp1);
             tone(BUZZER, (2*i+6)*100);
+            
             delay(150);
             noTone(BUZZER);    
         } 
@@ -295,5 +323,6 @@ void loop() {
   // analogWrite(POW, 0);
   // tone(BUZZER,1000);
    delay(printPause);
+   Serial.println("");
     // noTone(BUZZER);
 }
