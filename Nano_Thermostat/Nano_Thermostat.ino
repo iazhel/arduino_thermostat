@@ -8,17 +8,17 @@
 #define VCC A7         // VCC 
 #define lcdLen 8       // 8 for 16*1, 16 for 16*2 lcdt
 #define BUTTON_COUNT 2 //
-
-char ver[] = "v1.15";
-char data[] ="06/06/22";
+#define BYPASS 12 // relay
+char ver[] = "v1.20";
+char data[] ="15/06/22";
  
 //CALIBRATING
-float t0Corr = -2.0;  // regulated temperature correction
-float t1Corr = 1.0;  // outwere temperature correction
 
-float Tset = 2;      //  Temperature at start
-int deltaRegulatedTemp = 20; // border for Tset
+float t0Corr = 2.0;  //8737
+float t1Corr = 2.0;  // outwere temperature correction
+float Tset = 48;      //  Temperature at start
 
+int deltaRegulatedTemp = 30; // border for Tset
 float v0Corr = 0.067,v1Corr = 0.067;  // voltage measurement coefficient
 
 // ALARMS SETTINGS
@@ -29,7 +29,7 @@ int sumAlarm0[alarmCount] = {0,0,0};  //
 int al0CyclesCount[alarmCount] = {32, 16, 4};// 
 
 int alarm1[alarmCount] = {0,0,0}; //
-int deltaT1[alarmCount] = {20, 25, 30}; //
+int deltaT1[alarmCount] = {15, 25, 30}; //
 int sumAlarm1[alarmCount] = {0,0,0};
 int al1CyclesCount[alarmCount] = {128, 64, 32};//
 
@@ -44,7 +44,7 @@ int timeCycle = 2 * printPause;
 // adjusting values
 
 int powerHisteresis = 4; // relay paramert
-
+//int byPassLevel = 200; // in 8-bit maximum
 
 int fanMaxPower = 125, powMax = 250;    //  of 254 max
 int poweForFanOn = 120;   // value output power for FAN on
@@ -55,7 +55,7 @@ float uLowCoef = 0.7;
 
 // PID controller coefficients:
 float kp = 25;     // proportional
-float ki = 5;       // integral 
+float ki = 0.5;       // integral 
 float kd = 0;       // differencial
 
 // PID variables
@@ -87,6 +87,7 @@ void setup() {
     pinMode(POW, OUTPUT);
     pinMode(FAN, OUTPUT);
     pinMode(BUZZER, OUTPUT);
+    pinMode(BYPASS, OUTPUT);
     
     Serial.begin(9600);
 
@@ -96,6 +97,12 @@ void setup() {
     lcd.setCursor(0,1);
     lcd.print(data);
     delay(3000);
+
+    lcd.clear();
+    lcd.print(t0Corr,1);
+    lcd.setCursor(0,1);
+    lcd.print(t1Corr,1);
+    delay(2000);
 }
     
 void loop() {
@@ -122,12 +129,12 @@ void loop() {
     Serial.print(Tset,0);
     Serial.print("C");
 
-    Serial.print("  Alarms0:"); 
+    Serial.print("  A0:"); 
      for (int i = 0; i < alarmCount;i++){
          Serial.print(sumAlarm0[i]);
          Serial.print("/");  
      }
-     Serial.print("  Alarms1:");
+     Serial.print("  A1:");
      for (int i = 0; i < alarmCount;i++){
          Serial.print(sumAlarm1[i]);
          Serial.print("/");  
@@ -184,11 +191,19 @@ void loop() {
     }
     
     // cut border of power value
-    if (powe > powMax)
-        powe = powMax;
-    if (powe < -powMax)
-        powe = -powMax;
-        
+    if (abs(powe) > powMax){
+        powe = powMax - 2*powMax*(powe < 0);
+        digitalWrite(BYPASS, HIGH);
+        Serial.print(" ByPAss ON "); 
+        Serial.print(powe);  
+    }
+    if (abs(powe) < powMax*0.90){
+      digitalWrite(BYPASS, LOW);
+      Serial.print(" ByPass OFF ");  
+    }
+
+      
+     
     powerOutput = int(powe*(1 - powWaitCoef*(v1 < 6))*(1 - uLowCoef*(v0<9)));     
     //int powerOutput = powe;
  
@@ -208,7 +223,7 @@ void loop() {
     //    lcd.print("FAN");
     
 
-    Serial.print("/ Power:");
+    Serial.print("/ P:");
     Serial.print(powerOutput/2.5,0);
     Serial.print("%");
     Serial.print("/ FAN:");
@@ -222,7 +237,8 @@ void loop() {
     Serial.print(Up,1);
       
      
-    // OUTPUT POWER ON!!!     
+    // OUTPUT POWER ON!!!
+         
     analogWrite(POW, abs(powerOutput));      
     digitalWrite(FAN, fanPower);
     delay(timeCycle);  
