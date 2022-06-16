@@ -9,16 +9,16 @@
 #define lcdLen 8       // 8 for 16*1, 16 for 16*2 lcdt
 #define BUTTON_COUNT 2 //
 #define BYPASS 12 // relay
-char ver[] = "v1.20";
-char data[] ="15/06/22";
+char ver[] = "v1.21";
+char data[] ="16/06/22";
  
 //CALIBRATING
 
 float t0Corr = 2.0;  //8737
 float t1Corr = 2.0;  // outwere temperature correction
-float Tset = 48;      //  Temperature at start
+float Tset = 18;      //  Temperature at start
 
-int deltaRegulatedTemp = 30; // border for Tset
+int deltaRegulatedTemp = 15; // border for Tset
 float v0Corr = 0.067,v1Corr = 0.067;  // voltage measurement coefficient
 
 // ALARMS SETTINGS
@@ -44,7 +44,7 @@ int timeCycle = 2 * printPause;
 // adjusting values
 
 int powerHisteresis = 4; // relay paramert
-//int byPassLevel = 200; // in 8-bit maximum
+float byPassOnLevel = 0.95, byPassOffLevel = 0.85;
 
 int fanMaxPower = 125, powMax = 250;    //  of 254 max
 int poweForFanOn = 120;   // value output power for FAN on
@@ -55,7 +55,7 @@ float uLowCoef = 0.7;
 
 // PID controller coefficients:
 float kp = 25;     // proportional
-float ki = 0.5;       // integral 
+float ki = 2.5;       // integral 
 float kd = 0;       // differencial
 
 // PID variables
@@ -117,6 +117,7 @@ void loop() {
     // Voltage measuring without poewer supply
     //v0 = ((analogRead(VBAT)*v0Corr));
     //v1 = ((analogRead(VCC)*v1Corr));
+   
     
     delay(25);
     analogWrite(POW, abs(powerOutput));
@@ -190,21 +191,28 @@ void loop() {
       digitalWrite(RELAY_PIN, HIGH);
     }
     
-    // cut border of power value
+    bool V1On = v1 > 6;
+    bool V0High = v0 > 9;
+
+    if (abs(powe) < powMax*byPassOffLevel){
+       digitalWrite(BYPASS, LOW);
+       Serial.print(" ByPass OFF ");
+    } 
+    else if (abs(powe) < powMax*byPassOnLevel){
+        Serial.print(" ByPass FIXED");
+    }  else {
+        digitalWrite(BYPASS, HIGH*(V1On));
+        Serial.print(" ByPAss: ");
+        Serial.print(HIGH*(V1On)); 
+    
+    }
+    
+    // at result powe = powMax or -powMax
     if (abs(powe) > powMax){
         powe = powMax - 2*powMax*(powe < 0);
-        digitalWrite(BYPASS, HIGH);
-        Serial.print(" ByPAss ON "); 
-        Serial.print(powe);  
     }
-    if (abs(powe) < powMax*0.90){
-      digitalWrite(BYPASS, LOW);
-      Serial.print(" ByPass OFF ");  
-    }
-
-      
-     
-    powerOutput = int(powe*(1 - powWaitCoef*(v1 < 6))*(1 - uLowCoef*(v0<9)));     
+       
+    powerOutput = int(powe*(1 - powWaitCoef*!V1On)*(1 - uLowCoef*!V0High));     
     //int powerOutput = powe;
  
     int fanPower; 
