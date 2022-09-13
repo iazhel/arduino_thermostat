@@ -9,14 +9,28 @@
 #define lcdLen 8       // 8 for 16*1, 16 for 16*2 lcdt
 #define BUTTON_COUNT 2 //
 #define BYPASS 12 // relay
-char ver[] = "v1.21";
-char data[] ="16/06/22";
+
+char ver[] = "v1.30";
+char data[] ="12/09/22";
  
 //CALIBRATING
 
-float t0Corr = 2.0;  //8737
-float t1Corr = 2.0;  // outwere temperature correction
-float Tset = 18;      //  Temperature at start
+float t0Corr = -2.8;  //8737
+float t1Corr = -2.0;  // outwere temperature correction
+
+float Tset = 28;      //  Temperature at start
+boolean onlyHeating = 1;
+boolean onlyCooling = 0;
+
+// PID controller coefficients:
+float kp = 10;     // in reality is feedback differential koefficient 
+                   // should be more ki in 100 times for heating and in 30 times for cooling 
+                    
+float ki = 0.050;   // prorortional koefficient with summarity integration 
+                   // for heating should be less that for cooling
+
+float kd = 0;      // 
+
 
 int deltaRegulatedTemp = 15; // border for Tset
 float v0Corr = 0.067,v1Corr = 0.067;  // voltage measurement coefficient
@@ -43,23 +57,18 @@ int printPause = 1000; // have 6
 int timeCycle = 2 * printPause; 
 // adjusting values
 
-int powerHisteresis = 4; // relay paramert
+int powerHisteresis = 1; // relay paramert
 float byPassOnLevel = 0.95, byPassOffLevel = 0.85;
 
-int fanMaxPower = 125, powMax = 250;    //  of 254 max
+int fanMaxPower = 75, powMax = 250;    //  of 254 max
 int poweForFanOn = 120;   // value output power for FAN on
 int poweForFanOff = 70;   // value output power for FAN off
-float powWaitCoef = 0.5;  // coeficient output power decriace when VCC(V1) < 6V,
+float powWaitCoef = 0.0;  // coeficient output power decriace when VCC(V1) < 6V,
 float fanWaitCoef = 0.25; // coeficient FAN speed decriase when VCC < 6V;
 float uLowCoef = 0.7;
 
-// PID controller coefficients:
-float kp = 25;     // proportional
-float ki = 2.5;       // integral 
-float kd = 0;       // differencial
-
 // PID variables
-float powe = 0, powe_1 = 0;
+float powE = 0, powE_1 = 0;
 float En = 0, En_1 = 0, En_2 = 0;
 
 //  object/ air/ unused/ temperature
@@ -114,10 +123,10 @@ void loop() {
     raw1 = analogRead(A1);
     temp1 = ( raw1*0.489)-273+t1Corr;
    
-    // Voltage measuring without poewer supply
-    //v0 = ((analogRead(VBAT)*v0Corr));
-    //v1 = ((analogRead(VCC)*v1Corr));
-   
+    // Voltage parametrs
+       
+    bool V1On = v1 > 6;
+    bool V0High = v0 > 9;
     
     delay(25);
     analogWrite(POW, abs(powerOutput));
@@ -176,61 +185,50 @@ void loop() {
     En_2 = En_1;
     En_1 = En;
     En = Tset - temp0;
-    powe_1 = powe;
+    powE_1 = powE;
     float Ui = ki*En;
     float Up = kp*(En - En_1);
     float Ud = kd*(En-2*En_1+En_2);
-    powe = powe_1 + Ui + Up + Ud;
-
+    powE = powE_1 + Ui + Up + Ud;
  
-    // heating or cooling use histeresis
-    if(powe > powerHisteresis) {
+    
+    // at result powE = powMax or -powMax
+    if (abs(powE) > powMax){
+        powE = powMax - 2*powMax*(powE < 0);
+    }
+     if ((powE < 0)&&onlyHeating){
+        powE = 0;
+    }  
+     if ((temp0 >= Tset)&&onlyHeating){
+        powE = 0;
+    }  
+    powerOutput = int(powE*(1 - powWaitCoef*!V1On)*(1 - uLowCoef*!V0High));     
+
+   // prepariang heating or cooling realay, use histeresis
+    if(powE > powerHisteresis) {
       digitalWrite(RELAY_PIN, LOW);
     }
-    if (powe < -powerHisteresis){
+    if (powE < -powerHisteresis){
       digitalWrite(RELAY_PIN, HIGH);
     }
-    
-    bool V1On = v1 > 6;
-    bool V0High = v0 > 9;
-
-    if (abs(powe) < powMax*byPassOffLevel){
-       digitalWrite(BYPASS, LOW);
-       Serial.print(" ByPass OFF ");
-    } 
-    else if (abs(powe) < powMax*byPassOnLevel){
-        Serial.print(" ByPass FIXED");
-    }  else {
-        digitalWrite(BYPASS, HIGH*(V1On));
-        Serial.print(" ByPAss: ");
-        Serial.print(HIGH*(V1On)); 
-    
-    }
-    
-    // at result powe = powMax or -powMax
-    if (abs(powe) > powMax){
-        powe = powMax - 2*powMax*(powe < 0);
-    }
-       
-    powerOutput = int(powe*(1 - powWaitCoef*!V1On)*(1 - uLowCoef*!V0High));     
-    //int powerOutput = powe;
- 
+     
     int fanPower; 
+  
     // FAN on/of
-    if (abs(powe) > poweForFanOn){
-       fanPower = int(fanMaxPower*(1 - fanWaitCoef*(v1 < 6)));
-     }
-    if (abs(powe) < poweForFanOff)                 
-       fanPower = 0; 
+    
+   // if ((powE > poweForFanOn)&&(powE < 0)){
+   //    fanPower = int(fanMaxPower*(1 - fanWaitCoef*(v1 < 6)));
+   //  }
+    fanPower = fanMaxPower;
+    if ((powE < poweForFanOff)&&(powE >= 0)){
+          fanPower = 0; 
+    }
     
     lcd.setCursor(0,1);
     lcd.print(" P:");
     lcd.print(powerOutput/2.5,0);
     lcd.print("%     ");
-    //if (fanPower > 0)
-    //    lcd.print("FAN");
-    
-
+  
     Serial.print("/ P:");
     Serial.print(powerOutput/2.5,0);
     Serial.print("%");
@@ -249,6 +247,22 @@ void loop() {
          
     analogWrite(POW, abs(powerOutput));      
     digitalWrite(FAN, fanPower);
+    
+    delay(250);
+    
+    // change bypass status 
+    if (abs(powE) < powMax*byPassOffLevel){
+       digitalWrite(BYPASS, LOW);
+       Serial.print(" ByPass OFF ");
+    } 
+    else if (abs(powE) < powMax*byPassOnLevel){
+        Serial.print(" ByPass FIXED");
+    }  else {
+        digitalWrite(BYPASS, HIGH*V1On);
+        Serial.print(" ByPAss: ");
+        Serial.print(HIGH*V1On); 
+     }
+     
     delay(timeCycle);  
     
     // voltage measuring
@@ -344,9 +358,6 @@ void loop() {
     }
                  
   // time out for power          
-  // analogWrite(POW, 0);
-  // tone(BUZZER,1000);
    delay(printPause);
    Serial.println("");
-    // noTone(BUZZER);
 }
